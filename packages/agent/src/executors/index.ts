@@ -1,4 +1,4 @@
-import type { HanTask, MachineConfig } from '../types.js';
+import type { HanTask, MachineConfig, ProjectConfig } from '../types.js';
 import { devExecutor } from './dev.js';
 
 export interface ExecutorResult {
@@ -9,10 +9,11 @@ export interface ExecutorResult {
 export async function executeTask(
   task: HanTask,
   config: MachineConfig,
+  project: ProjectConfig,
 ): Promise<ExecutorResult> {
   switch (task.type) {
     case 'dev':
-      return devExecutor(task, config);
+      return devExecutor(task, config, project);
     case 'doc':
     case 'sheet':
     case 'slide':

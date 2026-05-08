@@ -83,7 +83,7 @@ export async function startWorker(): Promise<void> {
         foundTask = true;
         activeTasks++;
 
-        void runTask(task, client, lock, registry, config.machine_id, config).finally(() => {
+        void runTask(task, client, lock, registry, config.machine_id, config, project).finally(() => {
           activeTasks--;
         });
 
@@ -112,6 +112,7 @@ async function runTask(
   registry: MachineRegistry,
   machineId: string,
   config: import('../types.js').MachineConfig,
+  project: import('../types.js').ProjectConfig,
 ): Promise<void> {
   console.log(chalk.cyan(`\n▶ [${task.type.toUpperCase()}] ${task.title}`));
 
@@ -122,7 +123,7 @@ async function runTask(
   await registry.setCurrentTask(task.id);
 
   try {
-    const result = await executeTask(task, config);
+    const result = await executeTask(task, config, project);
 
     await notion.updateStatus(task.notion_page_id, 'Done', {
       ...(result.outputUrl !== undefined && { output_url: result.outputUrl }),

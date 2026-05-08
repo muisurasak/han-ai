@@ -35,8 +35,9 @@ export class ClaudeCliBrain implements Brain {
       '--no-session-persistence',
       '--dangerously-skip-permissions',
     ];
-    if (this.opts.workspaceDir !== undefined) {
-      args.push('--add-dir', this.opts.workspaceDir);
+    const wsDir = req.workspaceDir ?? this.opts.workspaceDir;
+    if (wsDir !== undefined) {
+      args.push('--add-dir', wsDir);
     }
 
     const proc = spawn(this.opts.claudeBin ?? 'claude', args, {

@@ -1,6 +1,7 @@
 export interface BrainRequest {
   systemPrompt: string;
   userPrompt: string;
+  workspaceDir?: string;
 }
 
 export interface BrainResponse {
