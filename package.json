@@ -1,0 +1,16 @@
+{
+  "name": "han-ai",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w apps/ui",
+    "build": "npm run build -w packages/agent && npm run build -w apps/ui",
+    "typecheck": "tsc --noEmit -p packages/agent/tsconfig.json && tsc --noEmit -p apps/ui/tsconfig.json",
+    "agent:start": "npm run start -w packages/agent",
+    "agent:dev": "npm run dev -w packages/agent"
+  }
+}
