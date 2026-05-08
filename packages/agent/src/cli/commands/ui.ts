@@ -6,7 +6,7 @@ export function uiCommand(): Command {
   return new Command('ui')
     .description('Open Han AI config UI in browser')
     .action(() => {
-      const url = 'http://localhost:3000';
+      const url = 'http://localhost:3100';
       console.log(chalk.cyan(`\n🌐 Opening Han AI UI → ${url}\n`));
       try {
         execSync(`open "${url}"`);
