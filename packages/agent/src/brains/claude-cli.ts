@@ -29,6 +29,7 @@ export class ClaudeCliBrain implements Brain {
     const args = [
       '-p',
       '--output-format', 'stream-json',
+      '--verbose',
       '--input-format', 'text',
       '--model', this.opts.model ?? 'sonnet',
       '--append-system-prompt', req.systemPrompt,
