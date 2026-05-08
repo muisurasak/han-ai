@@ -1,6 +1,11 @@
 export type TaskType = 'dev' | 'doc' | 'sheet' | 'slide';
 export type TaskStatus = 'New' | 'Approve' | 'In-Progress' | 'Done' | 'Failed';
-export type BrainName = 'claude-sonnet-4-6' | 'claude-opus-4-7' | 'gemini-2.5-pro' | 'gemini-2.0-flash' | 'llm-server';
+export type BrainName =
+  | 'claude-sonnet-4-6'
+  | 'claude-opus-4-7'
+  | 'gemini-2.5-pro'
+  | 'gemini-2.0-flash'
+  | 'llm-server';
 
 export interface BrainConfig {
   default: BrainName;
@@ -43,6 +48,7 @@ export interface HanTask {
   type: TaskType;
   status: TaskStatus;
   priority: number;
+  retry_count: number;
   project_id?: string;
   assigned_to?: string;
   claimed_by?: string;
@@ -50,7 +56,6 @@ export interface HanTask {
   heartbeat_at?: string;
   output_url?: string;
   error_log?: string;
-  retry_count: number;
   brain_used?: string;
   context?: string;
 }
@@ -62,4 +67,14 @@ export interface MachineInfo {
   last_seen: number;
   accept_types: TaskType[];
   current_task?: string;
+}
+
+export interface TaskUpdateExtra {
+  claimed_by?: string;
+  claimed_at?: string;
+  heartbeat_at?: string;
+  output_url?: string;
+  error_log?: string;
+  brain_used?: string;
+  retry_count?: number;
 }

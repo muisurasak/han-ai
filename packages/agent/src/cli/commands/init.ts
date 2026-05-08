@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
+import os from 'os';
 import { saveMachineConfig, getMachineConfig } from '../../config.js';
 import type { MachineConfig, TaskType, BrainName } from '../../types.js';
 
@@ -17,7 +18,7 @@ export function initCommand(): Command {
           type: 'input',
           name: 'machine_name',
           message: 'Machine name:',
-          default: existing?.machine_name ?? require('os').hostname(),
+          default: existing?.machine_name ?? os.hostname(),
         },
         {
           type: 'checkbox',
@@ -36,8 +37,8 @@ export function initCommand(): Command {
             'gemini-2.5-pro',
             'gemini-2.0-flash',
             'llm-server',
-          ],
-          default: existing?.brain?.default ?? 'claude-sonnet-4-6',
+          ] satisfies BrainName[],
+          default: existing?.brain.default ?? 'claude-sonnet-4-6',
         },
         {
           type: 'input',
@@ -77,31 +78,35 @@ export function initCommand(): Command {
         },
       ]);
 
-      const machineId = (answers.machine_name as string)
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '-');
+      const machineName = answers['machine_name'] as string;
+      const machineId = machineName.toLowerCase().replace(/[^a-z0-9]/g, '-');
 
       const config: MachineConfig = {
         machine_id: machineId,
-        machine_name: answers.machine_name as string,
-        accept_types: answers.accept_types as TaskType[],
-        brain: {
-          default: answers.default_brain as BrainName,
-        },
-        notion_token: answers.notion_token as string,
-        claude_api_key: (answers.claude_api_key as string) || undefined,
-        gemini_api_key: (answers.gemini_api_key as string) || undefined,
-        discord_token: (answers.discord_token as string) || undefined,
-        redis_url: answers.redis_url as string,
-        poll_interval: answers.poll_interval as number,
+        machine_name: machineName,
+        accept_types: (answers['accept_types'] as string[]) as TaskType[],
+        brain: { default: answers['default_brain'] as BrainName },
+        notion_token: answers['notion_token'] as string,
+        redis_url: answers['redis_url'] as string,
+        poll_interval: (answers['poll_interval'] as number | undefined) ?? 30,
         max_concurrent_tasks: 1,
       };
+
+      // optional fields — ใส่เฉพาะถ้ามีค่า (exactOptionalPropertyTypes safe)
+      const claudeKey = answers['claude_api_key'] as string;
+      if (claudeKey.length > 0) config.claude_api_key = claudeKey;
+
+      const geminiKey = answers['gemini_api_key'] as string;
+      if (geminiKey.length > 0) config.gemini_api_key = geminiKey;
+
+      const discordToken = answers['discord_token'] as string;
+      if (discordToken.length > 0) config.discord_token = discordToken;
 
       saveMachineConfig(config);
 
       console.log(chalk.green('\n✅ Config saved!'));
       console.log(chalk.gray(`   machine_id: ${config.machine_id}`));
-      console.log(chalk.gray(`   config: ~/.han/config.json`));
+      console.log(chalk.gray(`   config path: ~/.han/config.json`));
       console.log(chalk.cyan('\nNext: add a project via `han ui` then run `han start`\n'));
     });
 }

@@ -6,10 +6,10 @@ const HEARTBEAT_INTERVAL_MS = 30_000;
 const OFFLINE_THRESHOLD_MS = 120_000; // 2 นาที
 
 export class MachineRegistry {
-  private redis: IORedis;
-  private machineId: string;
-  private machineName: string;
-  private acceptTypes: TaskType[];
+  private readonly redis: IORedis;
+  private readonly machineId: string;
+  private readonly machineName: string;
+  private readonly acceptTypes: TaskType[];
   private heartbeatTimer?: NodeJS.Timeout;
 
   constructor(redis: IORedis, machineId: string, machineName: string, acceptTypes: TaskType[]) {
@@ -19,14 +19,14 @@ export class MachineRegistry {
     this.acceptTypes = acceptTypes;
   }
 
-  /** Register เครื่องนี้เข้า registry และเริ่ม heartbeat */
+  /** Register เครื่องนี้เข้า registry และเริ่ม heartbeat ทุก 30s */
   async register(): Promise<void> {
     await this.ping();
-    this.heartbeatTimer = setInterval(() => this.ping(), HEARTBEAT_INTERVAL_MS);
+    this.heartbeatTimer = setInterval(() => void this.ping(), HEARTBEAT_INTERVAL_MS);
   }
 
   async unregister(): Promise<void> {
-    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+    if (this.heartbeatTimer !== undefined) clearInterval(this.heartbeatTimer);
     const info: MachineInfo = {
       machine_id: this.machineId,
       machine_name: this.machineName,
@@ -37,33 +37,43 @@ export class MachineRegistry {
     await this.redis.hset(REGISTRY_KEY, this.machineId, JSON.stringify(info));
   }
 
+  /** อัปเดต task ที่กำลังทำอยู่ (undefined = ว่าง) */
   async setCurrentTask(taskId: string | undefined): Promise<void> {
     const raw = await this.redis.hget(REGISTRY_KEY, this.machineId);
-    if (!raw) return;
+    if (raw === null) return;
     const info = JSON.parse(raw) as MachineInfo;
-    info.current_task = taskId;
+    if (taskId !== undefined) {
+      info.current_task = taskId;
+    } else {
+      delete info.current_task;
+    }
     await this.redis.hset(REGISTRY_KEY, this.machineId, JSON.stringify(info));
   }
 
+  /** ดูรายชื่อ machine ทั้งหมด (ตรวจ online/offline จาก last_seen) */
   async listAll(): Promise<MachineInfo[]> {
     const all = await this.redis.hgetall(REGISTRY_KEY);
     const now = Date.now();
     return Object.values(all).map((raw) => {
-      const info = JSON.parse(raw as string) as MachineInfo;
+      const info = JSON.parse(raw) as MachineInfo;
       info.status = now - info.last_seen > OFFLINE_THRESHOLD_MS ? 'offline' : 'online';
       return info;
     });
   }
 
-  private async ping(currentTask?: string): Promise<void> {
+  private async ping(): Promise<void> {
+    const raw = await this.redis.hget(REGISTRY_KEY, this.machineId);
+    const existing = raw !== null ? (JSON.parse(raw) as MachineInfo) : undefined;
     const info: MachineInfo = {
       machine_id: this.machineId,
       machine_name: this.machineName,
       status: 'online',
       last_seen: Date.now(),
       accept_types: this.acceptTypes,
-      current_task: currentTask,
     };
+    if (existing?.current_task !== undefined) {
+      info.current_task = existing.current_task;
+    }
     await this.redis.hset(REGISTRY_KEY, this.machineId, JSON.stringify(info));
   }
 }

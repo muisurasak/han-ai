@@ -9,15 +9,16 @@ import type { HanTask } from '../types.js';
 const MIN_POLL_MS = 30_000;
 const MAX_POLL_MS = 120_000;
 
+/** Start the polling worker loop — runs until SIGINT/SIGTERM */
 export async function startWorker(): Promise<void> {
   const config = getMachineConfig();
-  if (!config) {
+  if (config === null) {
     console.error(chalk.red('❌ ยังไม่ได้ config — รัน `han init` ก่อน'));
     process.exit(1);
   }
 
   const projects = getProjects();
-  if (!projects.length) {
+  if (projects.length === 0) {
     console.error(chalk.red('❌ ยังไม่มี project — สร้าง project ก่อนที่ han UI'));
     process.exit(1);
   }
@@ -37,7 +38,6 @@ export async function startWorker(): Promise<void> {
   );
   await registry.register();
 
-  // สร้าง Notion clients ต่อ project
   const notionClients = projects.map((p) => ({
     project: p,
     client: new NotionClient(config.notion_token, p.notion_db_id),
@@ -46,19 +46,18 @@ export async function startWorker(): Promise<void> {
   let activeTasks = 0;
   let pollInterval = MIN_POLL_MS;
 
-  const shutdown = async () => {
+  const shutdown = async (): Promise<void> => {
     console.log(chalk.yellow('\n👋 Shutting down...'));
     await registry.unregister();
     await lock.disconnect();
     process.exit(0);
   };
 
-  process.on('SIGINT', shutdown);
-  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', () => void shutdown());
+  process.on('SIGTERM', () => void shutdown());
 
   console.log(chalk.green(`✅ Worker ready — polling every ${MIN_POLL_MS / 1000}s`));
 
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     if (activeTasks >= config.max_concurrent_tasks) {
       await sleep(pollInterval);
@@ -67,7 +66,7 @@ export async function startWorker(): Promise<void> {
 
     let foundTask = false;
 
-    for (const { project, client } of notionClients) {
+    outer: for (const { project: _project, client } of notionClients) {
       const tasks = await client.getApprovedTasks(config.machine_id, config.accept_types);
 
       for (const task of tasks) {
@@ -77,20 +76,22 @@ export async function startWorker(): Promise<void> {
         foundTask = true;
         activeTasks++;
 
-        // ไม่ await — run async เพื่อรับงานถัดไปได้ (ถ้า max_concurrent > 1)
-        runTask(task, client, lock, registry, config.machine_id)
-          .finally(() => { activeTasks--; });
+        void runTask(task, client, lock, registry, config.machine_id).finally(() => {
+          activeTasks--;
+        });
 
-        break; // claim ได้ 1 task แล้วออกจาก loop ในรอบนี้
+        break outer;
       }
-
-      if (foundTask) break;
     }
 
-    // Adaptive poll interval
-    pollInterval = foundTask ? MIN_POLL_MS : Math.min(pollInterval * 1.5, MAX_POLL_MS);
+    pollInterval = foundTask
+      ? MIN_POLL_MS
+      : Math.min(pollInterval * 1.5, MAX_POLL_MS);
+
     if (!foundTask) {
-      process.stdout.write(chalk.gray(`\r⏳ No tasks — next poll in ${Math.round(pollInterval / 1000)}s `));
+      process.stdout.write(
+        chalk.gray(`\r⏳ No tasks — next poll in ${Math.round(pollInterval / 1000)}s `),
+      );
     }
 
     await sleep(pollInterval);
@@ -116,16 +117,17 @@ async function runTask(
     const result = await executeTask(task);
 
     await notion.updateStatus(task.notion_page_id, 'Done', {
-      output_url: result.outputUrl,
-      brain_used: result.brainUsed,
+      ...(result.outputUrl !== undefined && { output_url: result.outputUrl }),
+      ...(result.brainUsed !== undefined && { brain_used: result.brainUsed }),
     });
 
     console.log(chalk.green(`✅ Done: ${task.title}`));
-    if (result.outputUrl) console.log(chalk.gray(`   → ${result.outputUrl}`));
-
+    if (result.outputUrl !== undefined) {
+      console.log(chalk.gray(`   → ${result.outputUrl}`));
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    const retryCount = (task.retry_count ?? 0) + 1;
+    const retryCount = task.retry_count + 1;
     const newStatus = retryCount >= 3 ? 'Failed' : 'Approve';
 
     await notion.updateStatus(task.notion_page_id, newStatus, {
@@ -134,7 +136,9 @@ async function runTask(
     });
 
     console.error(chalk.red(`❌ Failed: ${task.title} — ${msg}`));
-    if (newStatus === 'Failed') console.error(chalk.red('   Max retries reached → Failed'));
+    if (newStatus === 'Failed') {
+      console.error(chalk.red('   Max retries reached → Failed'));
+    }
   } finally {
     await lock.release(task.id);
     await registry.setCurrentTask(undefined);
