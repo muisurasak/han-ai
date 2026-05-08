@@ -1,5 +1,6 @@
 export type TaskType = 'dev' | 'doc' | 'sheet' | 'slide';
 export type BrainName =
+  | 'claude-cli'
   | 'claude-sonnet-4-6'
   | 'claude-opus-4-7'
   | 'gemini-2.5-pro'

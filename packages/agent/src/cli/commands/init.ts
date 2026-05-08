@@ -32,13 +32,14 @@ export function initCommand(): Command {
           name: 'default_brain',
           message: 'Default brain:',
           choices: [
+            'claude-cli',
             'claude-sonnet-4-6',
             'claude-opus-4-7',
             'gemini-2.5-pro',
             'gemini-2.0-flash',
             'llm-server',
           ] satisfies BrainName[],
-          default: existing?.brain.default ?? 'claude-sonnet-4-6',
+          default: existing?.brain.default ?? 'claude-cli',
         },
         {
           type: 'input',

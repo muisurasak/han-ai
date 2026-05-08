@@ -12,16 +12,22 @@ type FormState = {
   discord_channel_id: string;
 };
 
-export default function EditProjectPage({ params }: { params: { id: string } }) {
+export default function EditProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
+  const [id, setId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    void params.then((p) => setId(p.id));
+  }, [params]);
+
+  useEffect(() => {
+    if (id === null) return;
     void (async () => {
-      const res = await fetch(`/api/projects/${params.id}`);
+      const res = await fetch(`/api/projects/${id}`);
       if (res.ok) {
         const p = (await res.json()) as ProjectConfig;
         setForm({
@@ -35,7 +41,7 @@ export default function EditProjectPage({ params }: { params: { id: string } }) 
         setError('Project not found.');
       }
     })();
-  }, [params.id]);
+  }, [id]);
 
   const save = async () => {
     if (form === null) return;
@@ -48,7 +54,7 @@ export default function EditProjectPage({ params }: { params: { id: string } }) 
     if (form.google_drive_folder_id.length > 0) patch.google_drive_folder_id = form.google_drive_folder_id;
     if (form.discord_channel_id.length > 0) patch.discord_channel_id = form.discord_channel_id;
 
-    const res = await fetch(`/api/projects/${params.id}`, {
+    const res = await fetch(`/api/projects/${id}`, {
       method: 'PUT',
       body: JSON.stringify(patch),
       headers: { 'Content-Type': 'application/json' },
@@ -68,7 +74,7 @@ export default function EditProjectPage({ params }: { params: { id: string } }) 
   return (
     <div>
       <h1 className="text-xl font-bold text-cyan-400 mb-1">Edit Project</h1>
-      <p className="text-xs text-zinc-500 mb-6">ID: {params.id}</p>
+      <p className="text-xs text-zinc-500 mb-6">ID: {id}</p>
 
       <div className="space-y-5 max-w-lg">
         <Field label="Project Name">

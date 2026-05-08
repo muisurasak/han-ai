@@ -2,25 +2,30 @@ import { NextResponse } from 'next/server';
 import { getProjects, saveProject, deleteProject } from '@/lib/config';
 import type { ProjectConfig } from '@/lib/types';
 
-export function GET(_req: Request, { params }: { params: { id: string } }) {
-  const project = getProjects().find((p) => p.project_id === params.id);
+type Params = Promise<{ id: string }>;
+
+export async function GET(_req: Request, { params }: { params: Params }) {
+  const { id } = await params;
+  const project = getProjects().find((p) => p.project_id === id);
   if (project === undefined) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
   return NextResponse.json(project);
 }
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, { params }: { params: Params }) {
+  const { id } = await params;
   const body = (await request.json()) as Partial<ProjectConfig>;
-  const existing = getProjects().find((p) => p.project_id === params.id);
+  const existing = getProjects().find((p) => p.project_id === id);
   if (existing === undefined) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
-  saveProject({ ...existing, ...body, project_id: params.id });
+  saveProject({ ...existing, ...body, project_id: id });
   return NextResponse.json({ ok: true });
 }
 
-export function DELETE(_req: Request, { params }: { params: { id: string } }) {
-  deleteProject(params.id);
+export async function DELETE(_req: Request, { params }: { params: Params }) {
+  const { id } = await params;
+  deleteProject(id);
   return NextResponse.json({ ok: true });
 }

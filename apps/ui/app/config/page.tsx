@@ -5,6 +5,7 @@ import type { MachineConfig, TaskType, BrainName } from '@/lib/types';
 
 const TASK_TYPES: TaskType[] = ['dev', 'doc', 'sheet', 'slide'];
 const BRAIN_NAMES: BrainName[] = [
+  'claude-cli',
   'claude-sonnet-4-6',
   'claude-opus-4-7',
   'gemini-2.5-pro',

@@ -1,11 +1,12 @@
 export type TaskType = 'dev' | 'doc' | 'sheet' | 'slide';
 export type TaskStatus = 'New' | 'Approve' | 'In-Progress' | 'Done' | 'Failed';
 export type BrainName =
+  | 'claude-cli'        // spawn `claude` binary — ไม่ต้องใช้ API key
   | 'claude-sonnet-4-6'
   | 'claude-opus-4-7'
   | 'gemini-2.5-pro'
   | 'gemini-2.0-flash'
-  | 'llm-server';
+  | 'llm-server';       // POST ไปที่ llm_server_url
 
 export interface BrainConfig {
   default: BrainName;

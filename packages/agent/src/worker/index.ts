@@ -66,8 +66,15 @@ export async function startWorker(): Promise<void> {
 
     let foundTask = false;
 
-    outer: for (const { project: _project, client } of notionClients) {
-      const tasks = await client.getApprovedTasks(config.machine_id, config.accept_types);
+    outer: for (const { project, client } of notionClients) {
+      let tasks: Awaited<ReturnType<typeof client.getApprovedTasks>>;
+      try {
+        tasks = await client.getApprovedTasks(config.machine_id, config.accept_types);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        process.stdout.write(chalk.yellow(`\r⚠ [${project.project_id}] Notion error: ${msg.slice(0, 80)}\n`));
+        continue;
+      }
 
       for (const task of tasks) {
         const claimed = await lock.claim(task.id);
@@ -76,7 +83,7 @@ export async function startWorker(): Promise<void> {
         foundTask = true;
         activeTasks++;
 
-        void runTask(task, client, lock, registry, config.machine_id).finally(() => {
+        void runTask(task, client, lock, registry, config.machine_id, config).finally(() => {
           activeTasks--;
         });
 
@@ -104,6 +111,7 @@ async function runTask(
   lock: RedisLock,
   registry: MachineRegistry,
   machineId: string,
+  config: import('../types.js').MachineConfig,
 ): Promise<void> {
   console.log(chalk.cyan(`\n▶ [${task.type.toUpperCase()}] ${task.title}`));
 
@@ -114,7 +122,7 @@ async function runTask(
   await registry.setCurrentTask(task.id);
 
   try {
-    const result = await executeTask(task);
+    const result = await executeTask(task, config);
 
     await notion.updateStatus(task.notion_page_id, 'Done', {
       ...(result.outputUrl !== undefined && { output_url: result.outputUrl }),
